@@ -22,10 +22,12 @@ class UnPooling(layers.Layer):
         return out,argmax
 
 if __name__ == '__main__':
-    x = UnPooling()
 
-    input1 = np.random.uniform(size=(1,64,64,4))
-    input2 = np.random.uniform(size=(1,32,32,4))
-
-    out,argmax = x([input1,input2])
+    input1 = layers.Input(shape=(64,64,4))
+    input2 = layers.Input(shape=(32,32,4))
+    outs,argmax = UnPooling()([input1,input2])
+    in1 = np.random.uniform(size=(1, 64, 64, 4))
+    in2 = np.random.uniform(size=(1, 32, 32, 4))
+    m = Model(inputs=[input1,input2], outputs=[outs,argmax])
+    res = m.predict([in1,in2])
     print("")
