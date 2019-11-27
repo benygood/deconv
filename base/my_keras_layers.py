@@ -19,15 +19,17 @@ class UnPooling(layers.Layer):
 
     def call(self, inputs, pool_size=(1,2,2,1), strides=(1,2,2,1), padding='VALID' ):
         out, argmax = tf.nn.max_pool_with_argmax(inputs[0], pool_size, strides, padding)
-        return out,argmax
 
+        a = tf.unravel_index(tf.reshape(argmax,[-1]), tf.shape(inputs[0],out_type=tf.int64))
+        # print(a.shape)
+        return tf.expand_dims(a,0)
 if __name__ == '__main__':
 
     input1 = layers.Input(shape=(64,64,4))
     input2 = layers.Input(shape=(32,32,4))
-    outs,argmax = UnPooling()([input1,input2])
+    outs = UnPooling()([input1,input2])
     in1 = np.random.uniform(size=(1, 64, 64, 4))
     in2 = np.random.uniform(size=(1, 32, 32, 4))
-    m = Model(inputs=[input1,input2], outputs=[outs,argmax])
+    m = Model(inputs=[input1,input2], outputs=outs)
     res = m.predict([in1,in2])
     print("")
