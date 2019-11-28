@@ -19,22 +19,22 @@ class DeconvResnet50:
         self.deconv_model = {}
         input_shape = self.conv_model.get_layer(self.get_layer_name(5,'c')).output_shape[1:]
         self.inputPoints[(5, 'c')] = layers.Input(shape = input_shape)
-        self.inputPoints[(5, 'b')] = self.deconv_identity_block(self.inputPoints[(5, 'c')], 3, [512, 512, 2048], stage=5, block='c')
-        self.inputPoints[(5, 'a')] = self.deconv_identity_block(self.inputPoints[(5, 'b')], 3, [512, 512, 2048], stage=5, block='b')
-        self.inputPoints[(4, 'f')] = self.deconv_block(self.inputPoints[(5, 'a')], 3, [512, 512, 2048], stage=5, block='a')
-        self.inputPoints[(4, 'e')] = self.deconv_identity_block(self.inputPoints[(4, 'f')], 3, [256, 256, 1024], stage=4, block='f')
-        self.inputPoints[(4, 'd')] = self.deconv_identity_block(self.inputPoints[(4, 'e')], 3, [256, 256, 1024], stage=4, block='e')
-        self.inputPoints[(4, 'c')] = self.deconv_identity_block(self.inputPoints[(4, 'd')], 3, [256, 256, 1024], stage=4, block='d')
-        self.inputPoints[(4, 'b')] = self.deconv_identity_block(self.inputPoints[(4, 'c')], 3, [256, 256, 1024], stage=4, block='c')
-        self.inputPoints[(4, 'a')] = self.deconv_identity_block(self.inputPoints[(4, 'b')], 3, [256, 256, 1024], stage=4, block='b')
-        self.inputPoints[(3, 'd')] = self.deconv_block(self.inputPoints[(4, 'a')], 3, [256, 256, 1024], stage=4, block='a')
-        self.inputPoints[(3, 'c')] = self.deconv_identity_block(self.inputPoints[(3, 'd')], 3, [128, 128, 512], stage=3,block='d')
-        self.inputPoints[(3, 'b')] = self.deconv_identity_block(self.inputPoints[(3, 'c')], 3, [128, 128, 512], stage=3, block='c')
-        self.inputPoints[(3, 'a')] = self.deconv_identity_block(self.inputPoints[(3, 'b')], 3, [128, 128, 512], stage=3, block='b')
-        self.inputPoints[(2, 'c')] = self.deconv_block(self.inputPoints[(3, 'a')], 3, [128, 128, 512], stage=3, block='a')
-        self.inputPoints[(2, 'b')] = self.deconv_identity_block(self.inputPoints[(2, 'c')], 3, [64, 64, 256], stage=2, block='c')
-        self.inputPoints[(2, 'a')] = self.deconv_identity_block(self.inputPoints[(2, 'b')], 3, [64, 64, 256], stage=2, block='b')
-        self.inputPoints[(1, 'b')] = self.deconv_block(self.inputPoints[(2, 'a')], 3, [64, 64, 256], stage=2, block='a')
+        self.inputPoints[(5, 'b')] = self.deconv_identity_block(self.inputPoints[(5, 'c')], 3, [2048, 512, 512], stage=5, block='c')
+        self.inputPoints[(5, 'a')] = self.deconv_identity_block(self.inputPoints[(5, 'b')], 3, [2048, 512, 512], stage=5, block='b')
+        self.inputPoints[(4, 'f')] = self.deconv_block(self.inputPoints[(5, 'a')], 3, [1024, 512, 512], stage=5, block='a')
+        self.inputPoints[(4, 'e')] = self.deconv_identity_block(self.inputPoints[(4, 'f')], 3, [1024, 256, 256], stage=4, block='f')
+        self.inputPoints[(4, 'd')] = self.deconv_identity_block(self.inputPoints[(4, 'e')], 3, [1024, 256, 256], stage=4, block='e')
+        self.inputPoints[(4, 'c')] = self.deconv_identity_block(self.inputPoints[(4, 'd')], 3, [1024, 256, 256], stage=4, block='d')
+        self.inputPoints[(4, 'b')] = self.deconv_identity_block(self.inputPoints[(4, 'c')], 3, [1024, 256, 256], stage=4, block='c')
+        self.inputPoints[(4, 'a')] = self.deconv_identity_block(self.inputPoints[(4, 'b')], 3, [1024, 256, 256], stage=4, block='b')
+        self.inputPoints[(3, 'd')] = self.deconv_block(self.inputPoints[(4, 'a')], 3, [512, 256, 256], stage=4, block='a')
+        self.inputPoints[(3, 'c')] = self.deconv_identity_block(self.inputPoints[(3, 'd')], 3, [512, 128, 128], stage=3,block='d')
+        self.inputPoints[(3, 'b')] = self.deconv_identity_block(self.inputPoints[(3, 'c')], 3, [512, 128, 128], stage=3, block='c')
+        self.inputPoints[(3, 'a')] = self.deconv_identity_block(self.inputPoints[(3, 'b')], 3, [512, 128, 128], stage=3, block='b')
+        self.inputPoints[(2, 'c')] = self.deconv_block(self.inputPoints[(3, 'a')], 3, [256, 128, 128], stage=3, block='a')
+        self.inputPoints[(2, 'b')] = self.deconv_identity_block(self.inputPoints[(2, 'c')], 3, [256, 64, 64], stage=2, block='c')
+        self.inputPoints[(2, 'a')] = self.deconv_identity_block(self.inputPoints[(2, 'b')], 3, [256, 64, 64], stage=2, block='b')
+        self.inputPoints[(1, 'b')] = self.deconv_block(self.inputPoints[(2, 'a')], 3, [64, 64, 64], stage=2, block='a')
         out = self.deconv_stage1(self.inputPoints[(1, 'b')])
         self.deconv_model[(5, 'c')] = Model(self.inputPoints[(5, 'c')], out); self.set_weights(self.deconv_model[(5, 'c')])
         self.deconv_model[(4, 'f')] = Model(self.inputPoints[(4, 'f')], out); self.set_weights(self.deconv_model[(4, 'f')])
@@ -107,7 +107,7 @@ class DeconvResnet50:
         conv_name_base = 'res' + str(stage) + block + '_branch'
         #deconv like a mirror of conv process, ignore BN temporally
         x = layers.Activation('relu')(input_tensor)
-        shortcut = layers.Conv2DTranspose(filters3, (1, 1), strides=strides,
+        shortcut = layers.Conv2DTranspose(filters1, (1, 1), strides=strides,
                                  kernel_initializer='he_normal',
                                  name=conv_name_base + '1')(input_tensor)
         x = layers.Conv2DTranspose(filters3, (1, 1), strides=strides,
