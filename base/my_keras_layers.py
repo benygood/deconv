@@ -14,18 +14,19 @@ class MaskOfMaxPooling(layers.Layer):
         return tf.cast(out,tf.float32)
 
 class UnPooling(layers.Layer):
-    def __init__(self, pool_size=2, strides=2):
+    def __init__(self):
         super(UnPooling, self).__init__()
 
     def call(self, inputs, pool_size=(1,2,2,1), strides=(1,2,2,1), padding='VALID' ):
         out, argmax = tf.nn.max_pool_with_argmax(inputs[0], pool_size, strides, padding)
-
         a = tf.unravel_index(tf.reshape(argmax,[-1]), tf.shape(inputs[0],out_type=tf.int64))
-        b = tf.SparseTensor(indices=tf.transpose(a),values=inputs[1])
-        # print(a.shape)
-        return out, tf.expand_dims(a,0)
-if __name__ == '__main__':
+        b = tf.SparseTensor(indices=tf.transpose(a),
+                            values=tf.reshape(inputs[1], [-1]),
+                            dense_shape=tf.shape(inputs[0], out_type=tf.int64))
+        c = tf.sparse_tensor_to_dense(b,validate_indices=False)
+        return c
 
+if __name__ == '__main__':
     input1 = layers.Input(shape=(64,64,4))
     input2 = layers.Input(shape=(32,32,4))
     outs = UnPooling()([input1,input2])
