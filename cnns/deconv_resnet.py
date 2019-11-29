@@ -17,10 +17,31 @@ class DeconvResnet50:
         self.conv_layer_names = [ l.name for l in m.layers ]
         self.inputPoints = {}
         self.deconv_model = {}
-        input_shape = self.conv_model.get_layer(self.get_layer_name(5,'c')).output_shape[1:]
-        self.inputPoints[(5, 'c')] = layers.Input(shape = input_shape)
-        self.inputPoints[(5, 'b')] = self.deconv_identity_block(self.inputPoints[(5, 'c')], 3, [2048, 512, 512], stage=5, block='c')
-        self.inputPoints[(5, 'a')] = self.deconv_identity_block(self.inputPoints[(5, 'b')], 3, [2048, 512, 512], stage=5, block='b')
+
+
+    def create_model(self, input_layer = None):
+        assert type(input_layer) == tuple
+        beforeMaxPooling = layers.Input(shape = [114,114,64])
+        x = None
+        input_layer_name = self.get_layer_name(input_layer[0],input_layer[1])
+        input_layer_num = self.conv_layer_names.index(input_layer_name)
+        curr_layer_num = input_layer_num
+        if input_layer == (5,'c'):
+            input_shape = self.conv_model.get_layer(self.get_layer_name(5,'c')).output_shape[1:]
+            self.inputPoints[(5, 'c')] = layers.Input(shape = input_shape)
+            x = self.inputPoints[(5, 'c')]
+            curr_layer_num -= 1
+        if curr_layer_num <= input_layer_num:
+            x = self.deconv_identity_block(self.inputPoints[(5, 'c')], 3, [2048, 512, 512], stage=5, block='c')
+        if input_layer == (5,'b'):
+            input_shape = self.conv_model.get_layer(self.get_layer_name(5, 'b')).output_shape[1:]
+            self.inputPoints[(5, 'b')] = layers.Input(shape=input_shape)
+            x = self.inputPoints[(5, 'b')]
+        x = self.deconv_identity_block(x, 3, [2048, 512, 512], stage=5, block='b')
+        if input_layer == (5,'a'):
+            input_shape = self.conv_model.get_layer(self.get_layer_name(5, 'b')).output_shape[1:]
+            self.inputPoints[(5, 'b')] = layers.Input(shape=input_shape)
+            x = self.inputPoints[(5, 'b')]
         self.inputPoints[(4, 'f')] = self.deconv_block(self.inputPoints[(5, 'a')], 3, [1024, 512, 512], stage=5, block='a')
         self.inputPoints[(4, 'e')] = self.deconv_identity_block(self.inputPoints[(4, 'f')], 3, [1024, 256, 256], stage=4, block='f')
         self.inputPoints[(4, 'd')] = self.deconv_identity_block(self.inputPoints[(4, 'e')], 3, [1024, 256, 256], stage=4, block='e')
@@ -34,12 +55,16 @@ class DeconvResnet50:
         self.inputPoints[(2, 'c')] = self.deconv_block(self.inputPoints[(3, 'a')], 3, [256, 128, 128], stage=3, block='a')
         self.inputPoints[(2, 'b')] = self.deconv_identity_block(self.inputPoints[(2, 'c')], 3, [256, 64, 64], stage=2, block='c')
         self.inputPoints[(2, 'a')] = self.deconv_identity_block(self.inputPoints[(2, 'b')], 3, [256, 64, 64], stage=2, block='b')
-        self.inputPoints[(1, 'b')] = self.deconv_block(self.inputPoints[(2, 'a')], 3, [64, 64, 64], stage=2, block='a')
-        out = self.deconv_stage1(self.inputPoints[(1, 'b')])
-        self.deconv_model[(5, 'c')] = Model(self.inputPoints[(5, 'c')], out); self.set_weights(self.deconv_model[(5, 'c')])
-        self.deconv_model[(4, 'f')] = Model(self.inputPoints[(4, 'f')], out); self.set_weights(self.deconv_model[(4, 'f')])
-        self.deconv_model[(3, 'd')] = Model(self.inputPoints[(3, 'd')], out); self.set_weights(self.deconv_model[(3, 'd')])
-        self.deconv_model[(2, 'c')] = Model(self.inputPoints[(2, 'c')], out); self.set_weights(self.deconv_model[(2, 'c')])
+        self.inputPoints[(1, 'b')] = self.deconv_block(self.inputPoints[(2, 'a')], 3, [64, 64, 64], stage=2, block='a', strides=(1, 1))
+        out = self.deconv_stage1(self.inputPoints[(1, 'b')], beforeMaxPooling)
+        self.deconv_model[(5, 'c')] = Model([self.inputPoints[(5, 'c')]] + [beforeMaxPooling], out)
+        self.set_weights(self.deconv_model[(5, 'c')])
+        self.deconv_model[(4, 'f')] = Model([self.inputPoints[(4, 'f')]] + [beforeMaxPooling], out)
+        self.set_weights(self.deconv_model[(4, 'f')])
+        self.deconv_model[(3, 'd')] = Model([self.inputPoints[(3, 'd')]] + [beforeMaxPooling], out)
+        self.set_weights(self.deconv_model[(3, 'd')])
+        self.deconv_model[(2, 'c')] = Model([self.inputPoints[(2, 'c')]] + [beforeMaxPooling], out)
+        self.set_weights(self.deconv_model[(2, 'c')])
 
 
     def deconv_identity_block(self, input_tensor, kernel_size, filters, stage, block):
@@ -64,16 +89,19 @@ class DeconvResnet50:
         x = layers.Activation('relu')(input_tensor)
         x = layers.Conv2DTranspose( filters3, (1, 1),
                                     kernel_initializer='he_normal',
+                                    use_bias=False,
                                     name=conv_name_base + '2c')(x)
         #BN can be added here, also after ConvT?
         x = layers.Activation('relu')(x)
         x = layers.Conv2DTranspose(filters2, kernel_size,
                                    padding='same',
                                    kernel_initializer='he_normal',
+                                   use_bias=False,
                                    name=conv_name_base + '2b')(x)
         x = layers.Activation('relu')(x)
         x = layers.Conv2DTranspose(filters1, (1, 1),
                                    kernel_initializer='he_normal',
+                                   use_bias=False,
                                    name=conv_name_base + '2a')(x)
         x = layers.Activation('relu')(x)
         x = layers.add([x, input_tensor])
@@ -109,18 +137,22 @@ class DeconvResnet50:
         x = layers.Activation('relu')(input_tensor)
         shortcut = layers.Conv2DTranspose(filters1, (1, 1), strides=strides,
                                  kernel_initializer='he_normal',
+                                 use_bias=False,
                                  name=conv_name_base + '1')(input_tensor)
-        x = layers.Conv2DTranspose(filters3, (1, 1), strides=strides,
-                          kernel_initializer='he_normal',
-                          name=conv_name_base + '2c')(x)
+        x = layers.Conv2DTranspose(filters3, (1, 1),
+                                    kernel_initializer='he_normal',
+                                    use_bias=False,
+                                    name=conv_name_base + '2c')(x)
         x = layers.Activation('relu')(x)
         x = layers.Conv2DTranspose(filters2, kernel_size, padding='same',
-                          kernel_initializer='he_normal',
-                          name=conv_name_base + '2b')(x)
+                                    kernel_initializer='he_normal',
+                                    use_bias=False,
+                                    name=conv_name_base + '2b')(x)
         x = layers.Activation('relu')(x)
         x = layers.Conv2DTranspose(filters1, (1, 1), strides=strides,
-                        kernel_initializer='he_normal',
-                        name=conv_name_base + '2a')(x)
+                                    kernel_initializer='he_normal',
+                                    use_bias=False,
+                                    name=conv_name_base + '2a')(x)
         x = layers.add([x, shortcut])
         return x
 
@@ -132,8 +164,8 @@ class DeconvResnet50:
                 model.get_layer(ln).set_weights([w])
 
 
-    def deconv_stage1(self, x):
-        x = UnPooling()(x, pool_size=(1,3,3,1), strides=(1,2,2,1))
+    def deconv_stage1(self, x, before_pooling):
+        x = UnPooling()([before_pooling, x], pool_size=(1,3,3,1), strides=(1,2,2,1))
         x = layers.Cropping2D(1)(x)
         x = layers.Conv2DTranspose(3, (7,7), strides=(2,2), padding='valid', name='conv1')(x)
         x = layers.Cropping2D(3)(x)
