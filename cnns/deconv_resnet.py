@@ -2,9 +2,10 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 
 
 from tensorflow.keras.applications.resnet50 import ResNet50
-import tensorflow.keras.layers as layers
+from tensorflow.keras.layers import Input
 from base.my_keras_layers import UnPooling
 from tensorflow.keras import Model
+import tensorflow.keras.layers as layers
 
 
 
@@ -15,57 +16,54 @@ class DeconvResnet50:
         self.conv_model = m
         self.conv_layers = m.layers
         self.conv_layer_names = [ l.name for l in m.layers ]
-        self.inputPoints = {}
+        self.tops = {}
         self.deconv_model = {}
+        for top_ln in ['5c', '4f', '3d', '2c', '1b']:
+            self.__create_model(top_ln)
 
-
-    def create_model(self, input_layer = None):
-        assert type(input_layer) == tuple
-        beforeMaxPooling = layers.Input(shape = [114,114,64])
-        x = None
-        input_layer_name = self.get_layer_name(input_layer[0],input_layer[1])
-        input_layer_num = self.conv_layer_names.index(input_layer_name)
-        curr_layer_num = input_layer_num
-        if input_layer == (5,'c'):
-            input_shape = self.conv_model.get_layer(self.get_layer_name(5,'c')).output_shape[1:]
-            self.inputPoints[(5, 'c')] = layers.Input(shape = input_shape)
-            x = self.inputPoints[(5, 'c')]
-            curr_layer_num -= 1
-        if curr_layer_num <= input_layer_num:
-            x = self.deconv_identity_block(self.inputPoints[(5, 'c')], 3, [2048, 512, 512], stage=5, block='c')
-        if input_layer == (5,'b'):
-            input_shape = self.conv_model.get_layer(self.get_layer_name(5, 'b')).output_shape[1:]
-            self.inputPoints[(5, 'b')] = layers.Input(shape=input_shape)
-            x = self.inputPoints[(5, 'b')]
+    def __create_model(self, top = None):
+        assert type(top) == str
+        beforeMaxPooling = Input(shape = [114,114,64])
+        x = Input(shape=(7,7,2048))
+        if top=='5c': self.tops['5c'] = x
+        x = self.deconv_identity_block(x, 3, [2048, 512, 512], stage=5, block='c')
+        if top=='5b': x=Input(shape=[7,7,2048]); self.tops['5b'] = x
         x = self.deconv_identity_block(x, 3, [2048, 512, 512], stage=5, block='b')
-        if input_layer == (5,'a'):
-            input_shape = self.conv_model.get_layer(self.get_layer_name(5, 'b')).output_shape[1:]
-            self.inputPoints[(5, 'b')] = layers.Input(shape=input_shape)
-            x = self.inputPoints[(5, 'b')]
-        self.inputPoints[(4, 'f')] = self.deconv_block(self.inputPoints[(5, 'a')], 3, [1024, 512, 512], stage=5, block='a')
-        self.inputPoints[(4, 'e')] = self.deconv_identity_block(self.inputPoints[(4, 'f')], 3, [1024, 256, 256], stage=4, block='f')
-        self.inputPoints[(4, 'd')] = self.deconv_identity_block(self.inputPoints[(4, 'e')], 3, [1024, 256, 256], stage=4, block='e')
-        self.inputPoints[(4, 'c')] = self.deconv_identity_block(self.inputPoints[(4, 'd')], 3, [1024, 256, 256], stage=4, block='d')
-        self.inputPoints[(4, 'b')] = self.deconv_identity_block(self.inputPoints[(4, 'c')], 3, [1024, 256, 256], stage=4, block='c')
-        self.inputPoints[(4, 'a')] = self.deconv_identity_block(self.inputPoints[(4, 'b')], 3, [1024, 256, 256], stage=4, block='b')
-        self.inputPoints[(3, 'd')] = self.deconv_block(self.inputPoints[(4, 'a')], 3, [512, 256, 256], stage=4, block='a')
-        self.inputPoints[(3, 'c')] = self.deconv_identity_block(self.inputPoints[(3, 'd')], 3, [512, 128, 128], stage=3,block='d')
-        self.inputPoints[(3, 'b')] = self.deconv_identity_block(self.inputPoints[(3, 'c')], 3, [512, 128, 128], stage=3, block='c')
-        self.inputPoints[(3, 'a')] = self.deconv_identity_block(self.inputPoints[(3, 'b')], 3, [512, 128, 128], stage=3, block='b')
-        self.inputPoints[(2, 'c')] = self.deconv_block(self.inputPoints[(3, 'a')], 3, [256, 128, 128], stage=3, block='a')
-        self.inputPoints[(2, 'b')] = self.deconv_identity_block(self.inputPoints[(2, 'c')], 3, [256, 64, 64], stage=2, block='c')
-        self.inputPoints[(2, 'a')] = self.deconv_identity_block(self.inputPoints[(2, 'b')], 3, [256, 64, 64], stage=2, block='b')
-        self.inputPoints[(1, 'b')] = self.deconv_block(self.inputPoints[(2, 'a')], 3, [64, 64, 64], stage=2, block='a', strides=(1, 1))
-        out = self.deconv_stage1(self.inputPoints[(1, 'b')], beforeMaxPooling)
-        self.deconv_model[(5, 'c')] = Model([self.inputPoints[(5, 'c')]] + [beforeMaxPooling], out)
-        self.set_weights(self.deconv_model[(5, 'c')])
-        self.deconv_model[(4, 'f')] = Model([self.inputPoints[(4, 'f')]] + [beforeMaxPooling], out)
-        self.set_weights(self.deconv_model[(4, 'f')])
-        self.deconv_model[(3, 'd')] = Model([self.inputPoints[(3, 'd')]] + [beforeMaxPooling], out)
-        self.set_weights(self.deconv_model[(3, 'd')])
-        self.deconv_model[(2, 'c')] = Model([self.inputPoints[(2, 'c')]] + [beforeMaxPooling], out)
-        self.set_weights(self.deconv_model[(2, 'c')])
+        if top=='5a': x=Input(shape=[7,7,2048]); self.tops['5a']=x
+        x = self.deconv_block(x, 3, [1024, 512, 512], stage=5, block='a')
+        if top=='4f': x=Input(shape=[14,14,1024]); self.tops['4f']=x
+        x = self.deconv_identity_block(x, 3, [1024, 256, 256], stage=4, block='f')
+        if top=='4e': x=Input(shape=[14,14,1024]); self.tops['4e']=x
+        x = self.deconv_identity_block(x, 3, [1024, 256, 256], stage=4, block='e')
+        if top=='4d': x=Input(shape=[14,14,1024]); self.tops['4d']=x
+        x = self.deconv_identity_block(x, 3, [1024, 256, 256], stage=4, block='d')
+        if top=='4c': x=Input(shape=[14,14,1024]); self.tops['4c']=x
+        x = self.deconv_identity_block(x, 3, [1024, 256, 256], stage=4, block='c')
+        if top=='4b': x=Input(shape=[14,14,1024]); self.tops['4b']=x
+        x = self.deconv_identity_block(x, 3, [1024, 256, 256], stage=4, block='b')
+        if top=='4a': x=Input(shape=[14,14,1024]); self.tops['4a']=x
+        x = self.deconv_block(x, 3, [512, 256, 256], stage=4, block='a')
+        if top=='3d': x=Input(shape=[28,28,512]); self.tops['3d']=x
 
+        x = self.deconv_identity_block(x, 3, [512, 128, 128], stage=3, block='d')
+        if top=='3c': x=Input(shape=[28,28,512]); self.tops['3c']=x
+        x = self.deconv_identity_block(x, 3, [512, 128, 128], stage=3, block='c')
+        if top=='3b': x=Input(shape=[28,28,512]); self.tops['3b']=x
+        x = self.deconv_identity_block(x, 3, [512, 128, 128], stage=3, block='b')
+        if top=='3a': x=Input(shape=[28,28,512]); self.tops['3a']=x
+        x = self.deconv_block(x, 3, [256, 128, 128], stage=3, block='a')
+        if top=='2c': x=Input(shape=[56,56,256]); self.tops['2c']=x
+
+        x = self.deconv_identity_block(x, 3, [256, 64, 64], stage=2, block='c')
+        if top=='2b': x=Input(shape=[56,56,256]); self.tops['2b']=x
+        x = self.deconv_identity_block(x, 3, [256, 64, 64], stage=2, block='b')
+        if top=='2a': x=Input(shape=[56,56,256]); self.tops['2a']=x
+        x = self.deconv_block(x, 3, [64, 64, 64], stage=2, block='a', strides=(1, 1))
+        if top=='1b': x=Input(shape=[56,56,64]); self.tops['1b']=x
+        out = self.deconv_stage1(x, beforeMaxPooling)
+
+        self.deconv_model[top] = Model([self.tops[top]] + [beforeMaxPooling], out)
+        self.set_weights(self.deconv_model[top])
 
     def deconv_identity_block(self, input_tensor, kernel_size, filters, stage, block):
         """The identity block is the block that has no conv layer at shortcut.
@@ -175,9 +173,6 @@ class DeconvResnet50:
         conv_name_base = 'res' + str(stage) + block + '_branch2c'
         return conv_name_base
 
-    def gen_model(self, inputs, outputs, conv_model):
-        pass
-        return
 
 if __name__ == '__main__':
     d = DeconvResnet50()
