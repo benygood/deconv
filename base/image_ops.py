@@ -118,3 +118,29 @@ def grey_square(img, x, y, radius = 10):
     img[:, x-radius:x+radius, y-radius:y+radius, :] = 0
     return img
 
+
+def set_zero_except_maximum(filter, x):
+    assert filter >= 1
+    # Set other layers to zero
+    new_array = np.zeros_like(x)
+    new_array[0, :, :, filter - 1] = x[0, :, :, filter - 1]
+    # Set other activations in same layer to zero
+    max_index_flat = np.nanargmax(new_array)
+    max_index = np.unravel_index(max_index_flat, new_array.shape)
+    out = np.zeros_like(new_array)
+    out[max_index] = new_array[max_index]
+    return out
+
+def get_path_from_id(img_id):
+    '''
+    used for imagenet data
+    :param img_id:
+    :return:
+    '''
+    img_id_str = str(img_id)
+    while len(img_id_str) < 5:
+        img_id_str = '0' + img_id_str
+    folder = 'D:\data\imagenet-data\ILSVRC2012_img_val\\'
+    file = 'ILSVRC2012_val_000' + img_id_str + '.JPEG'
+    path = folder + file
+    return path
