@@ -96,11 +96,11 @@ class DeConv:
                 f = image_ops.get_strongest_filter(x)
                 x = image_ops.set_zero_except_maximum(f, x)
                 print("layer {}'s strongest filter No. is: {}".format(layer, f))
-            layer_out, x1, x2 = self.deconv_predict(x, layer)
+            layer_out = self.deconv_predict(x, layer)
 
             percentile = 99
             max_val = np.percentile(layer_out, percentile)
-            if max_val == 0.0: max_val = 100.0
+            if max_val == 0.0: max_val = 1.0
             layer_out *= (10 / max_val)
 
             box_borders.append(image_ops.get_bounding_box_coordinates(layer_out))
@@ -108,7 +108,7 @@ class DeConv:
 
         superposed_projections = np.maximum.reduce(projections)
         assert superposed_projections.shape == projections[0].shape
-        DeconvOutput(superposed_projections, mode="BGR", contrast=10).save_as(save_to_folder, '{}_activations.JPEG'.format(img_name))
+        DeconvOutput(superposed_projections, mode="BGR").save_as(save_to_folder, '{}_activations.JPEG'.format(img_name))
         out_img = DeconvOutput(img_input, mode="BGR")
         out_img.array = image_ops.draw_bounding_box_cv2(out_img.array, box_borders)
         out_img.save_as(save_to_folder, '{}.JPEG'.format(img_name))

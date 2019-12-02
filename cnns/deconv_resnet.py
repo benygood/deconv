@@ -13,6 +13,14 @@ from base import image_ops, imagenet_id_word
 
 
 class DeconvResnet50(DeConv):
+    layer_names = {
+        '5c': 'activation_48',
+        '4f': 'activation_39',
+        '3d': 'activation_21',
+        '2c': 'activation_9',
+        '1b': 'max_pooling2d',
+        'pool1_pad': 'pool1_pad'
+    }
 
     def __init__(self, top_names=['5c', '4f', '3d', '2c', '1b']):
         super(DeconvResnet50, self).__init__()
@@ -84,17 +92,17 @@ class DeconvResnet50(DeConv):
         x = self.deconv_identity_block(x, 3, [512, 128, 128], stage=3, block='b')
         if top=='3a': x=Input(shape=[28,28,512]); self.tops['3a']=x
         x = self.deconv_block(x, 3, [256, 128, 128], stage=3, block='a')
-        if top=='2c': x=Input(shape=[56,56,256]); self.tops['2c']=x
 
+        if top=='2c': x=Input(shape=[56,56,256]); self.tops['2c']=x
         x = self.deconv_identity_block(x, 3, [256, 64, 64], stage=2, block='c')
         if top=='2b': x=Input(shape=[56,56,256]); self.tops['2b']=x
         x = self.deconv_identity_block(x, 3, [256, 64, 64], stage=2, block='b')
         if top=='2a': x=Input(shape=[56,56,256]); self.tops['2a']=x
         x = self.deconv_block(x, 3, [64, 64, 64], stage=2, block='a', strides=(1, 1))
         if top=='1b': x=Input(shape=[56,56,64]); self.tops['1b']=x
-        out, x1, x2 = self.deconv_stage1(x, beforeMaxPooling)
+        out = self.deconv_stage1(x, beforeMaxPooling)
 
-        self.deconv_model[top] = Model([self.tops[top]] + [beforeMaxPooling], [out, x1, x2])
+        self.deconv_model[top] = Model([self.tops[top]] + [beforeMaxPooling], out)
         self.set_weights(self.deconv_model[top])
 
     def deconv_identity_block(self, input_tensor, kernel_size, filters, stage, block):
@@ -114,20 +122,22 @@ class DeconvResnet50(DeConv):
         filters1, filters2, filters3 = filters
 
         conv_name_base = 'res' + str(stage) + block + '_branch'
+        bn_name_base = 'bn' + str(stage) + block + '_branch'
         #deconv like a mirror of conv process, ignore BN temporally
-
-        x = layers.Activation('relu')(input_tensor)
+        x = layers.BatchNormalization(axis=3, name=bn_name_base + '2c')(input_tensor)
         x = layers.Conv2DTranspose( filters3, (1, 1),
                                     kernel_initializer='he_normal',
                                     use_bias=False,
                                     name=conv_name_base + '2c')(x)
         #BN can be added here, also after ConvT?
+        x = layers.BatchNormalization(axis=3, name=bn_name_base + '2b')(x)
         x = layers.Activation('relu')(x)
         x = layers.Conv2DTranspose(filters2, kernel_size,
                                    padding='same',
                                    kernel_initializer='he_normal',
                                    use_bias=False,
                                    name=conv_name_base + '2b')(x)
+        x = layers.BatchNormalization(axis=3, name=bn_name_base + '2a')(x)
         x = layers.Activation('relu')(x)
         x = layers.Conv2DTranspose(filters1, (1, 1),
                                    kernel_initializer='he_normal',
@@ -163,27 +173,35 @@ class DeconvResnet50(DeConv):
         """
         filters1, filters2, filters3 = filters
         conv_name_base = 'res' + str(stage) + block + '_branch'
+        bn_name_base = 'bn' + str(stage) + block + '_branch'
         #deconv like a mirror of conv process, ignore BN temporally
-        x = layers.Activation('relu')(input_tensor)
+        #x = layers.Activation('relu')(input_tensor)
+        x = layers.BatchNormalization(axis=3, name=bn_name_base + '2c')(input_tensor)
+
         shortcut = layers.Conv2DTranspose(filters1, (1, 1), strides=strides,
                                  kernel_initializer='he_normal',
                                  use_bias=False,
-                                 name=conv_name_base + '1')(input_tensor)
+                                 activation='relu',
+                                 name=conv_name_base + '1')(x)
         x = layers.Conv2DTranspose(filters3, (1, 1),
                                     kernel_initializer='he_normal',
                                     use_bias=False,
                                     name=conv_name_base + '2c')(x)
+        x = layers.BatchNormalization(axis=3, name=bn_name_base + '2b')(x)
         x = layers.Activation('relu')(x)
         x = layers.Conv2DTranspose(filters2, kernel_size, padding='same',
                                     kernel_initializer='he_normal',
                                     use_bias=False,
                                     name=conv_name_base + '2b')(x)
+        x = layers.BatchNormalization(axis=3, name=bn_name_base + '2a')(x)
         x = layers.Activation('relu')(x)
         x = layers.Conv2DTranspose(filters1, (1, 1), strides=strides,
                                     kernel_initializer='he_normal',
                                     use_bias=False,
                                     name=conv_name_base + '2a')(x)
+        x = layers.Activation('relu')(x)
         x = layers.add([x, shortcut])
+
         return x
 
     def set_weights(self, model):
@@ -192,30 +210,26 @@ class DeconvResnet50(DeConv):
             if ln.startswith('res') or ln == 'conv1':
                 w = self.conv_model.get_layer(ln).get_weights()[0]
                 model.get_layer(ln).set_weights([w])
+            if ln.startswith('bn'):
+                w = self.conv_model.get_layer(ln).get_weights()
+                model.get_layer(ln).set_weights(w)
 
 
     def deconv_stage1(self, x, before_pooling):
-        x = UnPooling()([before_pooling, x], pool_size=(1,3,3,1), strides=(1,2,2,1)); x1=x
-        x = layers.Cropping2D(1)(x); x2 = x
-        x = layers.Conv2DTranspose(3, (7,7), strides=(2,2), padding='valid',  name='conv1', use_bias=False )(x)
+        x = UnPooling()([before_pooling, x], pool_size=(1,3,3,1), strides=(1,2,2,1))
+        x = layers.Cropping2D(1)(x)
+        x = layers.Conv2DTranspose(3, (7,7), strides=(2,2), padding='valid', activation='relu', name='conv1', use_bias=False )(x)
         x = layers.Cropping2D(3)(x)
-        return x, x1, x2
+        return x
 
     def get_conv_layer(self, ln=None ):
         assert  type(ln) == str
-        if ln == '1b':
-            conv_layer_name = 'max_pooling2d'
-        elif ln == 'pool1_pad':
-            conv_layer_name = 'pool1_pad'
-        else:
-            conv_layer_name = 'res' + ln + '_branch2c'
-        return self.conv_model.get_layer(conv_layer_name)
-
+        return self.conv_model.get_layer(DeconvResnet50.layer_names[ln])
 
 if __name__ == '__main__':
-    d = DeconvResnet50(['3d', '1b'])
+    d = DeconvResnet50(['5c','4f'])
     print(d.conv_layer_names)
-    for id in ['11337']:
+    for id in ['3','2155']:
         img = d.preprocess(id)
         pred = d.conv_predict(img)
         #print top3 preict class
@@ -225,6 +239,6 @@ if __name__ == '__main__':
             pred_word.append(imagenet_id_word.get_word(ind))
         print ("imgae: {} => pred class: {}.{}".format(id, indexes, pred_word))
         d.before_max_pooling_predict(img)
-        d.project_multiple_layer_filters(img, id)
+        d.project_multiple_layer_filters(img, id, max_filter=False)
 
 
