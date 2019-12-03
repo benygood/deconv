@@ -101,7 +101,7 @@ class DeConv:
             percentile = 99
             max_val = np.percentile(layer_out, percentile)
             if max_val == 0.0: max_val = 1.0
-            layer_out *= (10 / max_val)
+            layer_out *= (100 / max_val)
 
             box_borders.append(image_ops.get_bounding_box_coordinates(layer_out))
             projections.append(layer_out)

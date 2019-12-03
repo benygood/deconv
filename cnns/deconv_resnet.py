@@ -177,12 +177,12 @@ class DeconvResnet50(DeConv):
         #deconv like a mirror of conv process, ignore BN temporally
         #x = layers.Activation('relu')(input_tensor)
         x = layers.BatchNormalization(axis=3, name=bn_name_base + '2c')(input_tensor)
-
+        shortcut = layers.BatchNormalization(axis=3, name=bn_name_base + '1')(input_tensor)
         shortcut = layers.Conv2DTranspose(filters1, (1, 1), strides=strides,
                                  kernel_initializer='he_normal',
                                  use_bias=False,
                                  activation='relu',
-                                 name=conv_name_base + '1')(x)
+                                 name=conv_name_base + '1')(shortcut)
         x = layers.Conv2DTranspose(filters3, (1, 1),
                                     kernel_initializer='he_normal',
                                     use_bias=False,
@@ -201,7 +201,6 @@ class DeconvResnet50(DeConv):
                                     name=conv_name_base + '2a')(x)
         x = layers.Activation('relu')(x)
         x = layers.add([x, shortcut])
-
         return x
 
     def set_weights(self, model):
@@ -212,12 +211,17 @@ class DeconvResnet50(DeConv):
                 model.get_layer(ln).set_weights([w])
             if ln.startswith('bn'):
                 w = self.conv_model.get_layer(ln).get_weights()
+                # wt = np.zeros((4, w[0].shape[0]))
+                # wt[0] = w[0]
+                # wt[3] = w[3]
+                # model.get_layer(ln).set_weights(wt)
                 model.get_layer(ln).set_weights(w)
 
 
     def deconv_stage1(self, x, before_pooling):
         x = UnPooling()([before_pooling, x], pool_size=(1,3,3,1), strides=(1,2,2,1))
         x = layers.Cropping2D(1)(x)
+        x = layers.BatchNormalization(axis=3, name='bn_conv1')(x)
         x = layers.Conv2DTranspose(3, (7,7), strides=(2,2), padding='valid', activation='relu', name='conv1', use_bias=False )(x)
         x = layers.Cropping2D(3)(x)
         return x
@@ -229,7 +233,7 @@ class DeconvResnet50(DeConv):
 if __name__ == '__main__':
     d = DeconvResnet50(['5c','4f'])
     print(d.conv_layer_names)
-    for id in ['3','2155']:
+    for id in ['3','2155', '233', '10587']:
         img = d.preprocess(id)
         pred = d.conv_predict(img)
         #print top3 preict class
@@ -239,6 +243,6 @@ if __name__ == '__main__':
             pred_word.append(imagenet_id_word.get_word(ind))
         print ("imgae: {} => pred class: {}.{}".format(id, indexes, pred_word))
         d.before_max_pooling_predict(img)
-        d.project_multiple_layer_filters(img, id, max_filter=False)
+        d.project_multiple_layer_filters(img, id, max_filter=True)
 
 
