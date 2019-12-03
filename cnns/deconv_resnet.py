@@ -231,7 +231,7 @@ class DeconvResnet50(DeConv):
         return self.conv_model.get_layer(DeconvResnet50.layer_names[ln])
 
 if __name__ == '__main__':
-    d = DeconvResnet50(['5c','4f'])
+    d = DeconvResnet50(['5c','3d', '2c'])
     print(d.conv_layer_names)
     for id in ['3','2155', '233', '10587']:
         img = d.preprocess(id)

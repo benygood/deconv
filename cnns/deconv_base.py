@@ -100,15 +100,29 @@ class DeConv:
 
             percentile = 99
             max_val = np.percentile(layer_out, percentile)
+            #max_val = np.nanmax(layer_out)
             if max_val == 0.0: max_val = 1.0
-            layer_out *= (100 / max_val)
+            layer_out *= (120 / max_val)
 
             box_borders.append(image_ops.get_bounding_box_coordinates(layer_out))
             projections.append(layer_out)
 
         superposed_projections = np.maximum.reduce(projections)
+        #superposed_projections = np.average(projections,axis=0)
         assert superposed_projections.shape == projections[0].shape
         DeconvOutput(superposed_projections, mode="BGR").save_as(save_to_folder, '{}_activations.JPEG'.format(img_name))
         out_img = DeconvOutput(img_input, mode="BGR")
         out_img.array = image_ops.draw_bounding_box_cv2(out_img.array, box_borders)
         out_img.save_as(save_to_folder, '{}.JPEG'.format(img_name))
+
+if __name__ == '__main__':
+    img = np.ones(shape=(30,30,3))
+    img255 = img*1000
+    img0 = img*0
+    img100 = img*100
+    out_img255 = Image.fromarray(img255.astype(np.uint8), "RGB")
+    out_img255.save('img255.jpeg')
+    out_img0 = Image.fromarray(img0.astype(np.uint8), "RGB")
+    out_img0.save('img0.jpeg')
+    out_img100 = Image.fromarray(img100.astype(np.uint8), "RGB")
+    out_img100.save('img100.jpeg')
