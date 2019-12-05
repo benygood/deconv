@@ -98,11 +98,11 @@ class DeConv:
                 print("layer {}'s strongest filter No. is: {}".format(layer, f))
             layer_out = self.deconv_predict(x, layer)
 
-            percentile = 99
+            percentile = 95
             max_val = np.percentile(layer_out, percentile)
             #max_val = np.nanmax(layer_out)
             if max_val == 0.0: max_val = 1.0
-            layer_out *= (120 / max_val)
+            layer_out *= (100 / max_val)
 
             box_borders.append(image_ops.get_bounding_box_coordinates(layer_out))
             projections.append(layer_out)
