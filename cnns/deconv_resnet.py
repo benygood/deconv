@@ -1,7 +1,7 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 
 
-from tensorflow.keras.applications.resnet50 import ResNet50, preprocess_input
+from base.tf_resnet50 import ResNet50, preprocess_input
 from tensorflow.keras.layers import Input
 from base.my_keras_layers import UnPooling
 from tensorflow.keras import Model
@@ -14,10 +14,10 @@ from base import image_ops, imagenet_id_word
 
 class DeconvResnet50(DeConv):
     layer_names = {
-        '5c': 'activation_48',
-        '4f': 'activation_39',
-        '3d': 'activation_21',
-        '2c': 'activation_9',
+        '5c': 'act5c_branch2c',
+        '4f': 'act4f_branch2c',
+        '3d': 'act3d_branch2c',
+        '2c': 'act2c_branch2c',
         '1b': 'max_pooling2d',
         'pool1_pad': 'pool1_pad'
     }

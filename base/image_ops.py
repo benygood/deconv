@@ -1,6 +1,9 @@
 import numpy as np
 import cv2
 from scipy.misc import imread, imresize
+from tensorflow.keras.preprocessing import image
+from keras.applications import imagenet_utils
+
 def get_bounding_box_coordinates(projection):
     combined_channels = np.sum(projection[0], axis=2)
 
@@ -144,3 +147,33 @@ def get_path_from_id(img_id):
     file = 'ILSVRC2012_val_000' + img_id_str + '.JPEG'
     path = folder + file
     return path
+
+def load_image(img_path):
+    img = image.load_img(img_path, target_size=(224, 224))
+    x = image.img_to_array(img)
+    x = np.expand_dims(x, axis=0)
+    x = imagenet_utils.preprocess_input(x)
+    return x
+
+def deprocess_image(x, format = 'cl'):
+    '''
+    Same normalization as in:
+    https://github.com/fchollet/keras/blob/master/examples/conv_filter_visualization.py
+    '''
+    if np.ndim(x) > 3:
+        x = np.squeeze(x)
+    # normalize tensor: center on 0., ensure std is 0.1
+    x -= x.mean()
+    x /= (x.std() + 1e-5)
+    x *= 0.1
+
+    # clip to [0, 1]
+    x += 0.5
+    x = np.clip(x, 0, 1)
+
+    # convert to RGB array
+    x *= 255
+    if format == 'cf':
+        x = x.transpose((1, 2, 0))
+    x = np.clip(x, 0, 255).astype('uint8')
+    return x
