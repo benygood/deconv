@@ -19,22 +19,32 @@ def register_gradient():
             dtype = op.inputs[0].dtype
             return grad * tf.cast(grad > 0., dtype) * \
                 tf.cast(op.inputs[0] > 0., dtype)
-            #return grad * tf.cast(op.inputs[0]  > 0., dtype)
+            # return grad * tf.cast(op.inputs[0]  > 0., dtype)
+            # return grad * tf.cast(grad > 0., dtype)
 
 #def modify_backprop(model, name):
-def modify_backprop(name):
+def modify_backprop(name, ModelType):
     g = tf.get_default_graph()
     with g.gradient_override_map({'Relu': name}):
         # #re-instanciate a new model
         #new_model = ResNet50()
-        new_model = CurModel()
+        new_model = ModelType()
     return new_model
 
-def compile_saliency_function(model, activation_layer='activation_48'):
+def compile_saliency_function(model, activation_layer='activation_48', filter_index=None):
     input_img = model.input
     layer_dict = dict([(layer.name, layer) for layer in model.layers[1:]])
     layer_output = layer_dict[activation_layer].output
-    max_output = K.max(layer_output, axis=3)
+    max_output = None
+    if filter_index is None:
+        max_output = K.max(layer_output, axis=3)
+    elif filter_index >= 0:
+        ### check one filter
+        max_output = layer_output[:,:,:,filter_index]
+    ### check one point
+    # mask = np.zeros([7,7])
+    # mask[0][0] = 1
+    # max_output *= mask
     saliency = K.gradients(K.sum(max_output), input_img)[0]
     return K.function([input_img, K.learning_phase()], [saliency])
 
@@ -90,19 +100,23 @@ def grad_cam(input_model, image, category_index, layer_name):
     return np.uint8(cam), heatmap
 
 
-
-if __name__ == '__main__':
-    #CurModel = VGG16
+def visualize_cam_by_imgenatid():
+    # CurModel = VGG16
     # top_layer = 'block5_conv3'
 
     CurModel = ResNet50
     top_layer = 'act5c_branch2c'
+    # top_layer = 'act4f_branch2c'
+    # top_layer = 'act3d_branch2c'
+    # top_layer = 'act2c_branch2c'
+    # top_layer = 'max_pooling2d'
 
     model = CurModel()
     register_gradient()
-    guided_model = modify_backprop('GuidedBackProp')
+    guided_model = modify_backprop('GuidedBackProp', CurModel)
     saliency_fn = compile_saliency_function(guided_model, activation_layer=top_layer)
 
+    ### imagenet id input
     for id in ['3', '2155', '233', '10587']:
         path = image_ops.get_path_from_id(id)
         fname = os.path.basename(path)
@@ -114,9 +128,48 @@ if __name__ == '__main__':
 
         predicted_class = np.argmax(predictions)
         cam, heatmap = grad_cam(model, preprocessed_input, predicted_class, top_layer)
-        cv2.imwrite("../output/{}_{}_gradcam.jpg".format(fname,model.name), cam)
+        cv2.imwrite("../output/{}_{}_{}_gradcam.jpg".format(fname, top_layer, model.name), cam)
 
         preprocessed_input = image_ops.load_image(path)
         saliency = saliency_fn([preprocessed_input, 0])
         guided_gradcam = saliency[0] * heatmap[..., np.newaxis]
-        cv2.imwrite("../output/{}_{}_guided.jpg".format(fname, model.name), image_ops.deprocess_image(guided_gradcam))
+        cv2.imwrite("../output/{}_{}_{}_guided.jpg".format(fname, top_layer, model.name),
+                    image_ops.deprocess_image(guided_gradcam))
+
+def visualize_cam_by_path():
+    # CurModel = VGG16
+    # top_layer = 'block5_conv3'
+
+    CurModel = ResNet50
+    top_layer = 'act5c_branch2c'
+    # top_layer = 'act4f_branch2c'
+    # top_layer = 'act3d_branch2c'
+    # top_layer = 'act2c_branch2c'
+    # top_layer = 'max_pooling2d'
+
+    model = CurModel()
+    register_gradient()
+    guided_model = modify_backprop('GuidedBackProp', CurModel)
+    saliency_fn = compile_saliency_function(guided_model, activation_layer=top_layer)
+
+    ## single path input
+    path = '../base/small_pitch_ILSVRC2012_val_00000003.JPEG'
+    fname = os.path.basename(path)
+    preprocessed_input = image_ops.load_image(path)
+    predictions = model.predict(preprocessed_input)
+    top_1 = decode_predictions(predictions)[0][0]
+
+    print('img{}: {} ({}) with probability {:.2f}'.format(fname, top_1[1], top_1[0], top_1[2]))
+
+    predicted_class = np.argmax(predictions)
+    cam, heatmap = grad_cam(model, preprocessed_input, predicted_class, top_layer)
+    cv2.imwrite("../output/{}_{}_{}_gradcam.jpg".format(fname, top_layer, model.name), cam)
+
+    preprocessed_input = image_ops.load_image(path)
+    saliency = saliency_fn([preprocessed_input, 0])
+    guided_gradcam = saliency[0] * heatmap[..., np.newaxis]
+    cv2.imwrite("../output/{}_{}_{}_guided.jpg".format(fname, top_layer, model.name),
+                image_ops.deprocess_image(guided_gradcam))
+
+if __name__ == '__main__':
+    visualize_cam_by_imgenatid()

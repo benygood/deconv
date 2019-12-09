@@ -3,7 +3,7 @@ import cv2
 from scipy.misc import imread, imresize
 from tensorflow.keras.preprocessing import image
 from keras.applications import imagenet_utils
-
+import os
 def get_bounding_box_coordinates(projection):
     combined_channels = np.sum(projection[0], axis=2)
 
@@ -177,3 +177,17 @@ def deprocess_image(x, format = 'cl'):
         x = x.transpose((1, 2, 0))
     x = np.clip(x, 0, 255).astype('uint8')
     return x
+
+def to_small_pitch(path, pitch_size=(50,50), input_shape=(224,224,3)):
+    img = image.load_img(path, target_size = pitch_size)
+    x = image.img_to_array(img)
+    out = np.zeros(input_shape)
+    out[50:50+pitch_size[0],50:50+pitch_size[1],:] = x
+    fname = os.path.basename(path)
+    image.save_img("small_pitch_{}".format(fname), out)
+
+
+if __name__ == '__main__':
+    to_small_pitch('D:\data\imagenet-data\ILSVRC2012_img_val\ILSVRC2012_val_00000003.JPEG',pitch_size=(100,100))
+
+
