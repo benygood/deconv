@@ -10,7 +10,7 @@ import numpy as np
 from PIL import Image as pil_image
 from keras.preprocessing.image import save_img
 from keras import layers
-from keras.applications import vgg16
+from keras.applications import vgg16,resnet50
 from keras import backend as K
 
 
@@ -236,12 +236,13 @@ def visualize_layer(model,
 if __name__ == '__main__':
     # the name of the layer we want to visualize
     # (see model definition at keras/applications/vgg16.py)
-    LAYER_NAME = 'block5_conv1'
-
+    # LAYER_NAME = 'block5_conv1'
+    LAYER_NAME = 'res4f_branch2c'
     # build the VGG16 network with ImageNet weights
-    vgg = vgg16.VGG16(weights='imagenet', include_top=False)
+    #vgg = vgg16.VGG16(weights='imagenet', include_top=False)
+    model = resnet50.ResNet50()
     print('Model loaded.')
-    vgg.summary()
+    model.summary()
 
     # example function call
-    visualize_layer(vgg, LAYER_NAME)
+    visualize_layer(model, LAYER_NAME)

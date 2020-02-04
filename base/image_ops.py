@@ -1,6 +1,7 @@
 import numpy as np
 import cv2
-from scipy.misc import imread, imresize
+from scipy.misc import imresize
+from imageio import imread
 from tensorflow.keras.preprocessing import image
 from keras.applications import imagenet_utils
 import os

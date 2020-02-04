@@ -1,3 +1,6 @@
+'''
+https://blog.csdn.net/xys430381_1/article/details/90413169
+'''
 from __future__ import absolute_import, division, print_function, unicode_literals
 from tensorflow.python.framework import ops
 import tensorflow as tf
@@ -18,7 +21,7 @@ def register_gradient():
         def _GuidedBackProp(op, grad):
             dtype = op.inputs[0].dtype
             return grad * tf.cast(grad > 0., dtype) * \
-                tf.cast(op.inputs[0] > 0., dtype)
+               tf.cast(op.inputs[0] > 0., dtype)
             # return grad * tf.cast(op.inputs[0]  > 0., dtype)
             # return grad * tf.cast(grad > 0., dtype)
 
@@ -84,9 +87,8 @@ def grad_cam(input_model, image, category_index, layer_name):
 
     for i, w in enumerate(weights):
         cam += w * output[:, :, i]
-
     cam = cv2.resize(cam, (224, 224))
-    cam = np.maximum(cam, 0)
+    cam = np.maximum(cam, 0) # equar to relu
     heatmap = cam / np.max(cam)
 
     #Return to BGR [0..255] from the preprocessed image
@@ -133,6 +135,7 @@ def visualize_cam_by_imgenatid():
         preprocessed_input = image_ops.load_image(path)
         saliency = saliency_fn([preprocessed_input, 0])
         guided_gradcam = saliency[0] * heatmap[..., np.newaxis]
+        #guided_gradcam = saliency[0]
         cv2.imwrite("../output/{}_{}_{}_guided.jpg".format(fname, top_layer, model.name),
                     image_ops.deprocess_image(guided_gradcam))
 
@@ -153,7 +156,8 @@ def visualize_cam_by_path():
     saliency_fn = compile_saliency_function(guided_model, activation_layer=top_layer)
 
     ## single path input
-    path = '../base/small_pitch_ILSVRC2012_val_00000003.JPEG'
+    # path = '../data/monkey1.jpg'
+    path = '../data/faceu_20171126184737.jpg'
     fname = os.path.basename(path)
     preprocessed_input = image_ops.load_image(path)
     predictions = model.predict(preprocessed_input)
@@ -168,8 +172,10 @@ def visualize_cam_by_path():
     preprocessed_input = image_ops.load_image(path)
     saliency = saliency_fn([preprocessed_input, 0])
     guided_gradcam = saliency[0] * heatmap[..., np.newaxis]
+    # guided_gradcam = saliency[0]
     cv2.imwrite("../output/{}_{}_{}_guided.jpg".format(fname, top_layer, model.name),
                 image_ops.deprocess_image(guided_gradcam))
 
 if __name__ == '__main__':
-    visualize_cam_by_imgenatid()
+    # visualize_cam_by_imgenatid()
+    visualize_cam_by_path()

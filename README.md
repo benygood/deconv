@@ -13,3 +13,5 @@ Visualizing and Understanding Convolutional Networks
 https://zhuanlan.zhihu.com/p/48501100
 
 https://github.com/vdumoulin/conv_arithmetic
+
+guided_bp.py: https://blog.csdn.net/xys430381_1/article/details/90413169
