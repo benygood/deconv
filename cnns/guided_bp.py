@@ -101,7 +101,6 @@ def grad_cam(input_model, image, category_index, layer_name):
     cam = 255 * cam / np.max(cam)
     return np.uint8(cam), heatmap
 
-
 def visualize_cam_by_imgenatid():
     # CurModel = VGG16
     # top_layer = 'block5_conv3'

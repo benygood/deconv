@@ -18,7 +18,6 @@ from keras_applications import get_submodules_from_kwargs
 from keras_applications import imagenet_utils
 from keras_applications.imagenet_utils import decode_predictions
 from keras_applications.imagenet_utils import _obtain_input_shape
-
 preprocess_input = imagenet_utils.preprocess_input
 
 WEIGHTS_PATH = ('https://github.com/fchollet/deep-learning-models/'
@@ -32,6 +31,7 @@ backend = None
 layers = None
 models = None
 keras_utils = None
+from tensorflow.keras import layers
 
 
 def identity_block(input_tensor, kernel_size, filters, stage, block):
